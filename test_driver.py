@@ -1,11 +1,13 @@
 """End-to-end verification against a real Dragonfly instance (localhost:6379
-by default -- override with DRAGONFLY_HOST/DRAGONFLY_PORT). Creates two
-throwaway indexes (one HASH-backed, one JSON-backed), drives INSERT/SELECT/
-UPDATE through the driver, and asserts against what's actually stored --
-then drops both indexes (and their docs) again. Not pytest: a standalone
-script so `python3 test_driver.py` is enough to prove the driver works.
+by default -- override with DRAGONFLY_HOST/DRAGONFLY_PORT, or pass a full
+connection URI via -U/--uri or DRAGONFLY_URI). Creates two throwaway indexes
+(one HASH-backed, one JSON-backed), drives INSERT/SELECT/UPDATE through the
+driver, and asserts against what's actually stored -- then drops both
+indexes (and their docs) again. Not pytest: a standalone script so
+`python3 test_driver.py` is enough to prove the driver works.
 """
 
+import argparse
 import os
 
 from dragonfly_sql import Driver
@@ -13,6 +15,17 @@ from dragonfly_sql.client import make_client
 
 HOST = os.environ.get("DRAGONFLY_HOST", "localhost")
 PORT = int(os.environ.get("DRAGONFLY_PORT", "6379"))
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "-U", "--uri",
+        default=os.environ.get("DRAGONFLY_URI"),
+        help="Connection URI, e.g. redis://user:pass@host:6379/0 "
+             "(overrides DRAGONFLY_HOST/DRAGONFLY_PORT).",
+    )
+    return parser.parse_args()
 
 HASH_INDEX = "idx_demo_products"
 HASH_PREFIX = "demoproduct:"
@@ -141,7 +154,8 @@ def run(driver: Driver, client) -> None:
 
 
 def main() -> None:
-    client = make_client(host=HOST, port=PORT)
+    args = parse_args()
+    client = make_client(uri=args.uri, host=HOST, port=PORT)
     driver = Driver(client=client)
     setup(client)
     try:
