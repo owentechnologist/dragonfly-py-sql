@@ -180,6 +180,13 @@ def select_targets(select_exprs: list, field_types: dict) -> tuple[list, list]:
         if agg_cls is not None:
             reducer = _AGG_REDUCERS[agg_cls]
             arg = inner.this
+            if isinstance(arg, exp.Distinct):
+                if agg_cls is not exp.Count:
+                    raise ValueError(f"DISTINCT is only supported inside COUNT(...), not {reducer}(...)")
+                if len(arg.expressions) != 1:
+                    raise ValueError("COUNT(DISTINCT ...) supports exactly one column")
+                reducer = "COUNT_DISTINCT"
+                arg = arg.expressions[0]
             field = None if isinstance(arg, exp.Star) or arg is None else field_name(arg, field_types)
             alias = alias or (f"{reducer.lower()}_{field}" if field else reducer.lower())
             aggregates.append((reducer, field, alias))

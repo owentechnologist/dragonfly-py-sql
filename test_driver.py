@@ -101,6 +101,16 @@ def run(driver: Driver, client) -> None:
     agg_result = driver.execute(f"SELECT IN_STOCK, COUNT(*) AS cnt FROM {HASH_INDEX} GROUP BY IN_STOCK")
     check("GROUP BY COUNT(*) returns one group (every row defaults IN_STOCK to '')", agg_result["rows"] == [["", 3]], agg_result)
 
+    # -- HASH index: COUNT(DISTINCT col) via FT.AGGREGATE REDUCE COUNT_DISTINCT
+    distinct_count = driver.execute(f"SELECT COUNT(DISTINCT SKU) AS cnt FROM {HASH_INDEX}")
+    check("COUNT(DISTINCT SKU) counts the three distinct SKUs", distinct_count["rows"] == [[3]], distinct_count)
+
+    try:
+        driver.execute(f"SELECT SUM(DISTINCT PRICE) FROM {HASH_INDEX}")
+        check("SUM(DISTINCT ...) is rejected", False, "no exception raised")
+    except ValueError as e:
+        check("SUM(DISTINCT ...) is rejected", "only supported inside COUNT" in str(e), str(e))
+
     # -- HASH index: SELECT DISTINCT dedupes via GROUP BY --------------------
     # Three rows exist here: SKU-1 at 14.99 (INSERT 9.99, then UPDATE) plus
     # SKU-2 and SKU-3 both at 5.0, so DISTINCT PRICE must collapse to two.

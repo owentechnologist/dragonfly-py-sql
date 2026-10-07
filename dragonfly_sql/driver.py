@@ -65,8 +65,8 @@ def _rows_to_dicts(rows: list) -> list[dict]:
 
 
 def _coerce_agg_value(value, reducer: str, field: str | None, field_types: dict):
-    # COUNT reports a row count, not the schema type of any field.
-    if reducer == "COUNT":
+    # COUNT/COUNT_DISTINCT report a row/distinct-value count, not the schema type of any field.
+    if reducer in ("COUNT", "COUNT_DISTINCT"):
         return int(float(value)) if value is not None else None
     return coerce_value(value, field_types.get(field))
 
@@ -258,6 +258,8 @@ class Driver:
             for reducer, field, alias in aggregates:
                 if reducer == "COUNT":
                     pipeline_parts.append(f"REDUCE COUNT 0 AS {alias}")
+                elif reducer == "COUNT_DISTINCT":
+                    pipeline_parts.append(f"REDUCE COUNT_DISTINCT 1 @{field} AS {alias}")
                 else:
                     pipeline_parts.append(f"REDUCE {reducer} 1 @{field} AS {alias}")
             if order_fields:
